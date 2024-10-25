@@ -231,6 +231,7 @@ String HomeAssistantMQTT::getValue(String item)
       if (strcmp(values[i]->item, item.c_str()) == 0)
         return String(values[i]->value);
     }
+	i++;
   }
   return String("");
 }
