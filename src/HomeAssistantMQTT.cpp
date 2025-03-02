@@ -34,36 +34,52 @@ void HomeAssistantMQTT::begin(WiFiClient* wifiClient, const char* server, const 
   mqttClient->setKeepAlive(5);
 }
 
-void HomeAssistantMQTT::loop()
+bool HomeAssistantMQTT::loop()
 {
-  if (!mqttClient->connected())
-    connect();
 
-  mqttClient->loop();
+	bool wasConnected = mqttClient->connected();
+	if (!wasConnected) connect();
+	bool isConnected = mqttClient->loop();
+
+	if (!wasConnected && isConnected) {
+		return true;
+	} else {
+		return false;
+	}
 }
 
 void HomeAssistantMQTT::connect()
 {
   while (!mqttClient->connected())
   {
-#ifdef CFG_ON_SERIAL
-    Serial.print("Attempting MQTT connection...");
-#endif
-    String mqttClientId = "";
-    if (mqttClient->connect(mqttClientId.c_str(), MqttUser.c_str(), MqttPassword.c_str(), MqttStateTopic, 1, true, "{\"state\":\"offline\"}"))
-    {
-      mqttClient->publish(MqttStateTopic, "{\"state\":\"online\"}", true);
-#ifdef CFG_ON_SERIAL
-      Serial.println("connected");
-#endif
+    #ifdef DEBUG
+    Serial.println("Attempting MQTT connection...");
+    #endif
+    
+    String mqttClientId = DeviceName;
+    if (mqttClient->connect(mqttClientId.c_str(), MqttUser.c_str(), MqttPassword.c_str(), MqttStateTopic, 1, true, "{\"state\":\"offline\"}")) {
+      if (mqttClient->publish(MqttStateTopic, "{\"state\":\"online\"}", true))
+      {
+        #ifdef DEBUG
+        Serial.println("Sent online state successsfully.");      			
+        #endif
+      } else {
+        #ifdef DEBUG
+        Serial.println("Failed to send online state!!!");      			
+        #endif
+      }
+      
+      #ifdef DEBUG
+      Serial.println("Connected");
+      #endif
     }
     else
     {
-#ifdef CFG_ON_SERIAL
-      Serial.print("failed, rc=");
+      #ifdef DEBUG
+      Serial.print("Connection failed, state=");
       Serial.print(mqttClient->state());
-      Serial.println(" will try again in 5 seconds");
-#endif
+      Serial.println(", retrying in 5 seconds");
+      #endif
       delay(5000);
     }
   }
@@ -277,7 +293,17 @@ void HomeAssistantMQTT::sendValues()
   }
   c[ln - 1] = '}';
 
-  mqttClient->publish(StateTopic, c, true);
+  #ifdef DEBUG
+	Serial.print("sendValues:");
+	Serial.println(c);	
+  #endif
+
+  bool res = mqttClient->publish(StateTopic, c, true);
+  #ifdef DEBUG
+	Serial.print("res:");
+	Serial.println(res);	
+  #endif
+
 }
 
 void HomeAssistantMQTT::MqttCallback(char* topic, byte* payload, unsigned int length)
