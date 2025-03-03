@@ -55,12 +55,12 @@ In the loop method, call this library's instance loop method. Check if connectio
 
 ```c++
 void loop() {
-  mqtt.loop();
-  if (mqtt.connected())
-  {
-    if (!_bMqttConfigPublished)
-    {
-      // Publish config upon boot
+
+  bool reconnected = mqtt.loop();  
+
+  if (mqtt.connected()) {
+    if (!_bMqttConfigPublished || reconnected) {
+      // Publish config upon boot and reconnection. This re-subscribes to topics as required.
       publishMqttConfig();
       // Try to read actual values from MQTT to restore previous state
       mqtt.readValues();
