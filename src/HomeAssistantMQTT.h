@@ -43,7 +43,7 @@ class HomeAssistantMQTT
   
     HomeAssistantMQTT();
     void begin(WiFiClient* wifiClient, const char* server, const uint16_t port);
-    void loop();
+    bool loop();
 
     bool connected();
     void readValues();

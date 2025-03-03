@@ -21,11 +21,11 @@ void HomeAssistantMQTT::begin(WiFiClient* wifiClient, const char* server, const 
   strcat(MqttStateTopic, DeviceName.c_str());
   strcat(MqttStateTopic, "/state");
 
-#ifdef DEBUG
+  #ifdef DEBUG  
   Serial.print("MqttStateTopic: \"");
   Serial.print(MqttStateTopic);
   Serial.println("\"");
-#endif
+  #endif
 
   mqttClient = new PubSubClient(*wifiClient);
   mqttClient->setBufferSize(1024);
@@ -34,36 +34,56 @@ void HomeAssistantMQTT::begin(WiFiClient* wifiClient, const char* server, const 
   mqttClient->setKeepAlive(5);
 }
 
-void HomeAssistantMQTT::loop()
+bool HomeAssistantMQTT::loop()
 {
-  if (!mqttClient->connected())
-    connect();
 
-  mqttClient->loop();
+	bool wasConnected = mqttClient->connected();
+	if (!wasConnected) connect();
+	bool isConnected = mqttClient->loop();
+
+	if (!wasConnected && isConnected) {
+		return true;
+	} else {
+		return false;
+	}
 }
 
 void HomeAssistantMQTT::connect()
 {
   while (!mqttClient->connected())
   {
-#ifdef CFG_ON_SERIAL
-    Serial.print("Attempting MQTT connection...");
-#endif
-    String mqttClientId = "";
-    if (mqttClient->connect(mqttClientId.c_str(), MqttUser.c_str(), MqttPassword.c_str(), MqttStateTopic, 1, true, "{\"state\":\"offline\"}"))
+    #ifdef DEBUG
+    Serial.println("Attempting MQTT connection...");
+    #endif
+    
+    String mqttClientId = DeviceName;
+    if (mqttClient->connect(mqttClientId.c_str(), MqttUser.c_str(), MqttPassword.c_str(), MqttStateTopic, 1, true, "{\"state\":\"offline\"}")) 
     {
-      mqttClient->publish(MqttStateTopic, "{\"state\":\"online\"}", true);
-#ifdef CFG_ON_SERIAL
-      Serial.println("connected");
-#endif
-    }
-    else
+
+      #ifdef DEBUG
+        Serial.println("Connected");
+      #endif
+
+      if (mqttClient->publish(MqttStateTopic, "{\"state\":\"online\"}", true)) 
+      {
+        #ifdef DEBUG
+        Serial.println("Sent online state successsfully.");      			
+        #endif
+      } 
+      else 
+      {
+        #ifdef DEBUG
+        Serial.println("Failed to send online state!!!");      			
+        #endif
+      }      
+    } 
+    else 
     {
-#ifdef CFG_ON_SERIAL
-      Serial.print("failed, rc=");
+      #ifdef DEBUG
+      Serial.print("Connection failed, state=");
       Serial.print(mqttClient->state());
-      Serial.println(" will try again in 5 seconds");
-#endif
+      Serial.println(", retrying in 5 seconds");
+      #endif
       delay(5000);
     }
   }
@@ -150,11 +170,11 @@ void HomeAssistantMQTT::publishConfig(const char* type, String category, String 
 
       + "}";
 
-#ifdef DEBUG
+  #ifdef DEBUG
   Serial.println(topic.c_str());
   Serial.print("  - ");
   Serial.println(data.c_str());
-#endif
+  #endif
 
   mqttClient->publish(topic.c_str(), data.c_str(), true);
 
@@ -231,17 +251,18 @@ String HomeAssistantMQTT::getValue(String item)
       if (strcmp(values[i]->item, item.c_str()) == 0)
         return String(values[i]->value);
     }
+	i++;
   }
   return String("");
 }
 
 void HomeAssistantMQTT::readValues()
 {
-#ifdef DEBUG
+  #ifdef DEBUG
   Serial.print("readValues: topic \"");
   Serial.print(StateTopic);
   Serial.println("\"");
-#endif
+  #endif
   mqttClient->subscribe(StateTopic);
 }
 
@@ -276,7 +297,17 @@ void HomeAssistantMQTT::sendValues()
   }
   c[ln - 1] = '}';
 
-  mqttClient->publish(StateTopic, c, true);
+  #ifdef DEBUG
+	Serial.print("sendValues:");
+	Serial.println(c);	
+  #endif
+
+  bool res = mqttClient->publish(StateTopic, c, true);
+  #ifdef DEBUG
+	Serial.print("res:");
+	Serial.println(res);	
+  #endif
+
 }
 
 void HomeAssistantMQTT::MqttCallback(char* topic, byte* payload, unsigned int length)
