@@ -279,7 +279,7 @@ void HomeAssistantMQTT::sendValues()
   }
   ln++;
 
-  char* c = new char[ln];
+  char c[ln];
   strcpy(c, "{");
   
   i = 0;
